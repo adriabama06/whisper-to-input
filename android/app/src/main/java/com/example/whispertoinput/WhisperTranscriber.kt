@@ -33,6 +33,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
+import org.json.JSONObject
 
 class WhisperTranscriber {
     private data class Config(
@@ -74,7 +75,7 @@ class WhisperTranscriber {
             val request = buildWhisperRequest(
                 context,
                 filename,
-                "$endpoint?encode=true&task=transcribe&language=$languageCode&word_timestamps=false&output=txt",
+                "$endpoint?encode=true&stream=false&task=transcribe&language=$languageCode&word_timestamps=false&response_format=txt&output=txt",
                 mediaType,
                 apiKey,
                 isRequestStyleOpenaiApi
@@ -102,7 +103,15 @@ class WhisperTranscriber {
                     // Clean up unused audio file after transcription
                     // Ref: https://developer.android.com/reference/android/media/MediaRecorder#setOutputFile(java.io.File)
                     File(filename).delete()
-                    return@withContext Pair(response, null)
+
+                    var resultText = response
+
+                    // The response is a JSON
+                    if(response.startsWith("{") && response.contains("\"text\":\"")) {
+                        resultText = JSONObject(response).getString("text")
+                    }
+
+                    return@withContext Pair(resultText, null)
                 } catch (e: CancellationException) {
                     // Task was canceled
                     return@withContext Pair(null, null)
